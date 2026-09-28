@@ -1,0 +1,6 @@
+{
+  "name": "RIOS – Gestão de Escalas",
+  "description": "Sistema de gestão e mapa operacional de alocação de professores com App Docente integrado para acesso individual às aulas direcionadas e diário de classe.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

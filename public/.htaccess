@@ -1,0 +1,85 @@
+# ==============================================================================
+# RIOS – Gestão de Escalas | Configuração de Produção para Servidores Hostinger
+# Apache / LiteSpeed (hPanel / cPanel)
+# ==============================================================================
+
+# 1. Roteamento de Aplicação SPA (Single Page Application)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  
+  # Não reescreve requisições para arquivos ou pastas reais
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Redireciona todas as outras rotas para o index.html da aplicação React
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# 2. Tipos MIME Adicionais
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType application/json .json
+  AddType image/svg+xml .svg
+  AddType image/webp .webp
+  AddDefaultCharset UTF-8
+</IfModule>
+
+# 3. Compressão Gzip / Deflate para Maior Velocidade de Carregamento
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/plain
+  AddOutputFilterByType DEFLATE text/html
+  AddOutputFilterByType DEFLATE text/xml
+  AddOutputFilterByType DEFLATE text/css
+  AddOutputFilterByType DEFLATE text/javascript
+  AddOutputFilterByType DEFLATE application/xml
+  AddOutputFilterByType DEFLATE application/xhtml+xml
+  AddOutputFilterByType DEFLATE application/javascript
+  AddOutputFilterByType DEFLATE application/x-javascript
+  AddOutputFilterByType DEFLATE application/json
+  AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# 4. Políticas de Cache do Navegador (Performance & Sem Conflito de Atualização)
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresDefault "access plus 1 month"
+
+  # HTML nunca é cacheado para garantir que novas atualizações entrem de imediato
+  ExpiresByType text/html "access plus 0 seconds"
+
+  # Arquivos estáticos com hash no nome (cache longo de 1 ano)
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+</IfModule>
+
+# 5. Cabeçalhos de Segurança HTTP
+<IfModule mod_headers.c>
+  # Impede que navegadores detectem incorretamente o tipo MIME
+  Header set X-Content-Type-Options "nosniff"
+  
+  # Proteção contra XSS em navegadores legados
+  Header set X-XSS-Protection "1; mode=block"
+  
+  # Proteção contra Clickjacking
+  Header set X-Frame-Options "SAMEORIGIN"
+  
+  # Referrer Policy
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  
+  # Garante que index.html sempre consulte o servidor
+  <FilesMatch "index\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+  </FilesMatch>
+</IfModule>
+
+# Desativa a listagem de diretórios
+Options -Indexes
+

@@ -1,0 +1,168 @@
+{
+  "entities": {
+    "Turma": {
+      "title": "Turma",
+      "description": "Turma com componentes curriculares e alocações",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "codigo": { "type": "string" },
+        "curso": { "type": "string" },
+        "escola": { "type": "string" },
+        "sala": { "type": "string" },
+        "turno": { "type": "string" },
+        "diasSemana": { "type": "array" },
+        "componentes": { "type": "array" }
+      },
+      "required": ["id", "codigo", "curso", "escola", "turno", "componentes"]
+    },
+    "Professor": {
+      "title": "Professor",
+      "description": "Dados cadastrais e acadêmicos do docente",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "email": { "type": "string" },
+        "telefone": { "type": "string" },
+        "valorHoraAula": { "type": "number" },
+        "ativo": { "type": "boolean" },
+        "competencias": { "type": "array" },
+        "escolasHabituais": { "type": "array" },
+        "turnoPreferencia": { "type": "string" }
+      },
+      "required": ["id", "nome", "email", "ativo", "competencias"]
+    },
+    "Escola": {
+      "title": "Escola",
+      "description": "Unidade escolar parceira e salas cadastradas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "cidade": { "type": "string" },
+        "endereco": { "type": "string" },
+        "contato": { "type": "string" },
+        "salas": { "type": "array" }
+      },
+      "required": ["id", "nome", "salas"]
+    },
+    "Usuario": {
+      "title": "Usuario",
+      "description": "Credenciais e permissões de acesso ao sistema",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "email": { "type": "string" },
+        "perfil": { "type": "string" },
+        "cargo": { "type": "string" },
+        "professorId": { "type": "string" },
+        "ativo": { "type": "boolean" },
+        "ultimoAcesso": { "type": "string" }
+      },
+      "required": ["id", "nome", "email", "perfil", "ativo"]
+    },
+    "AulaMinistrada": {
+      "title": "AulaMinistrada",
+      "description": "Registro de diário de classe e frequência lançado pelo professor",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "turmaId": { "type": "string" },
+        "turmaCodigo": { "type": "string" },
+        "componenteId": { "type": "string" },
+        "componenteNome": { "type": "string" },
+        "professorId": { "type": "string" },
+        "professorNome": { "type": "string" },
+        "data": { "type": "string" },
+        "horasLecionadas": { "type": "number" },
+        "conteudoMinistrado": { "type": "string" },
+        "observacoes": { "type": "string" },
+        "alunosPresentes": { "type": "number" },
+        "totalAlunosTurma": { "type": "number" },
+        "horarioLancamento": { "type": "string" }
+      },
+      "required": ["id", "turmaId", "componenteId", "professorId", "data", "horasLecionadas", "conteudoMinistrado"]
+    },
+    "ItemHistorico": {
+      "title": "ItemHistorico",
+      "description": "Registro de log de auditoria",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "usuario": { "type": "string" },
+        "acao": { "type": "string" },
+        "horario": { "type": "string" },
+        "categoria": { "type": "string" }
+      },
+      "required": ["id", "usuario", "acao", "horario"]
+    },
+    "ProjecaoAgendaDocente": {
+      "title": "ProjecaoAgendaDocente",
+      "description": "Projeção segura de turmas e componentes atribuídos a cada professor",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "professorId": { "type": "string" },
+        "turmas": { "type": "array" },
+        "ultimaAtualizacao": { "type": "string" }
+      },
+      "required": ["id", "professorId", "turmas"]
+    },
+    "LogAuditoria": {
+      "title": "LogAuditoria",
+      "description": "Registro de eventos de auditoria e segurança administrativa",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "acao": { "type": "string" },
+        "categoria": { "type": "string" },
+        "detalhes": { "type": "string" },
+        "usuarioId": { "type": "string" },
+        "usuarioNome": { "type": "string" },
+        "usuarioEmail": { "type": "string" },
+        "usuarioPerfil": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "dataHoraFormatada": { "type": "string" },
+        "targetId": { "type": "string" },
+        "targetNome": { "type": "string" }
+      },
+      "required": ["id", "acao", "categoria", "detalhes", "usuarioId", "usuarioNome", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/logs/{logId}": {
+      "schema": "LogAuditoria",
+      "description": "Coleção de registros de log de auditoria com acesso exclusivo a administradores"
+    },
+    "/agendaDocente/{docId}": {
+      "schema": "ProjecaoAgendaDocente",
+      "description": "Coleção de projeções seguras de turmas e componentes por professor"
+    },
+    "/turmas/{turmaId}": {
+      "schema": "Turma",
+      "description": "Coleção de turmas e matrizes curriculares"
+    },
+    "/professores/{professorId}": {
+      "schema": "Professor",
+      "description": "Coleção de professores e dados acadêmicos"
+    },
+    "/escolas/{escolaId}": {
+      "schema": "Escola",
+      "description": "Coleção de unidades escolares"
+    },
+    "/usuarios/{usuarioId}": {
+      "schema": "Usuario",
+      "description": "Coleção de usuários para controle de acesso"
+    },
+    "/aulasMinistradas/{aulaId}": {
+      "schema": "AulaMinistrada",
+      "description": "Coleção de registros de diário de classe"
+    },
+    "/historico/{historicoId}": {
+      "schema": "ItemHistorico",
+      "description": "Coleção de histórico de eventos do sistema"
+    }
+  }
+}

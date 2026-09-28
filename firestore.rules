@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Acesso aberto liberado conforme solicitação do usuário (sistema sem bloqueio de login)
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+
