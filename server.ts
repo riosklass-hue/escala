@@ -96,6 +96,151 @@ app.get("/api/health", (_req, res) => {
   });
 });
 
+// ==============================================================================
+// Hostinger & Local Storage Engine (Persistência no Servidor)
+// ==============================================================================
+const storageDir = path.join(process.cwd(), "public", "api", "data");
+if (!fs.existsSync(storageDir)) {
+  fs.mkdirSync(storageDir, { recursive: true });
+}
+const dbFilePath = path.join(storageDir, "rios_database.json");
+const dbBackupPath = path.join(storageDir, "rios_database_backup.json");
+
+function readDatabase(): any {
+  if (!fs.existsSync(dbFilePath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(dbFilePath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function writeDatabase(data: any): boolean {
+  try {
+    if (fs.existsSync(dbFilePath)) {
+      fs.copyFileSync(dbFilePath, dbBackupPath);
+    }
+    const tempFile = `${dbFilePath}.tmp.${Date.now()}`;
+    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2), "utf8");
+    fs.renameSync(tempFile, dbFilePath);
+    return true;
+  } catch (err) {
+    console.error("[Storage] Erro ao gravar banco:", err);
+    return false;
+  }
+}
+
+const handleGetDados: RequestHandler = (req, res) => {
+  const action = req.query.action || "load";
+  if (action === "status") {
+    const exists = fs.existsSync(dbFilePath);
+    const data = exists ? readDatabase() : null;
+    const stat = exists ? fs.statSync(dbFilePath) : null;
+    return res.json({
+      success: true,
+      status: "online",
+      server: "Hostinger / Local Server",
+      storageFileExists: exists,
+      fileSizeBytes: stat ? stat.size : 0,
+      lastUpdated: stat ? stat.mtime.toISOString() : null,
+      stats: {
+        totalTurmas: Array.isArray(data?.turmas) ? data.turmas.length : 0,
+        totalProfessores: Array.isArray(data?.professores) ? data.professores.length : 0,
+        totalEscolas: Array.isArray(data?.escolas) ? data.escolas.length : 0,
+        totalMatrizes: Array.isArray(data?.matrizes) ? data.matrizes.length : 0,
+        totalAulasMinistradas: Array.isArray(data?.aulasMinistradas) ? data.aulasMinistradas.length : 0,
+      },
+    });
+  }
+
+  if (action === "download_backup") {
+    if (!fs.existsSync(dbFilePath)) {
+      return res.status(404).json({ success: false, error: "Nenhum dado salvo ainda." });
+    }
+    res.setHeader("Content-Disposition", `attachment; filename="rios_backup_${new Date().toISOString().slice(0, 10)}.json"`);
+    return res.sendFile(dbFilePath);
+  }
+
+  const database = readDatabase();
+  return res.json({
+    success: true,
+    exists: !!database,
+    data: database,
+    lastUpdated: fs.existsSync(dbFilePath) ? fs.statSync(dbFilePath).mtime.toISOString() : null,
+  });
+};
+
+const handlePostDados: RequestHandler = (req, res) => {
+  const payload = req.body;
+  if (!payload || typeof payload !== "object") {
+    return res.status(400).json({ success: false, error: "Corpo inválido." });
+  }
+
+  const action = payload.action || req.query.action || "save_all";
+
+  if (action === "save_doc") {
+    const { collection, doc } = payload;
+    if (!collection || !doc || !doc.id) {
+      return res.status(400).json({ success: false, error: "Parâmetros inválidos para save_doc." });
+    }
+    const current = readDatabase() || {
+      turmas: [],
+      professores: [],
+      escolas: [],
+      matrizes: [],
+      historico: [],
+      aulasMinistradas: [],
+      usuarios: [],
+      auditoria: [],
+    };
+    if (!Array.isArray(current[collection])) {
+      current[collection] = [];
+    }
+    const idx = current[collection].findIndex((item: any) => String(item.id) === String(doc.id));
+    if (idx >= 0) {
+      current[collection][idx] = { ...current[collection][idx], ...doc };
+    } else {
+      current[collection].push(doc);
+    }
+    current.ultimaAtualizacao = new Date().toISOString();
+    writeDatabase(current);
+    return res.json({ success: true, message: `Documento salvo em ${collection}!`, timestamp: current.ultimaAtualizacao });
+  }
+
+  if (action === "delete_doc") {
+    const { collection, id } = payload;
+    if (!collection || !id) {
+      return res.status(400).json({ success: false, error: "Parâmetros inválidos para delete_doc." });
+    }
+    const current = readDatabase();
+    if (current && Array.isArray(current[collection])) {
+      current[collection] = current[collection].filter((item: any) => String(item.id) !== String(id));
+      current.ultimaAtualizacao = new Date().toISOString();
+      writeDatabase(current);
+    }
+    return res.json({ success: true, message: `Documento removido de ${collection}!` });
+  }
+
+  // save_all
+  const dataToSave = payload.data && typeof payload.data === "object" ? payload.data : { ...payload };
+  delete dataToSave.action;
+  dataToSave.ultimaAtualizacao = new Date().toISOString();
+  dataToSave.servidorOrigem = "Hostinger esc.riossistem.com.br";
+  writeDatabase(dataToSave);
+  return res.json({
+    success: true,
+    message: "Todas as informações foram salvas com sucesso no servidor Hostinger!",
+    timestamp: dataToSave.ultimaAtualizacao,
+  });
+};
+
+app.get("/api/dados", handleGetDados);
+app.get("/api/dados.php", handleGetDados);
+app.get("/api/storage.php", handleGetDados);
+app.post("/api/dados", handlePostDados);
+app.post("/api/dados.php", handlePostDados);
+app.post("/api/storage.php", handlePostDados);
+
 // Download ready-to-use Hostinger public_html.zip
 app.get("/api/download/hostinger-zip", (_req, res) => {
   const possiblePaths = [path.join(process.cwd(), "private", "packages", "hostinger_public_html.zip")];

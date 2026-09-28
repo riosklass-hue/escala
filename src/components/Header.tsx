@@ -41,6 +41,9 @@ interface HeaderProps {
   setIsAIOpen: (open: boolean) => void;
   onDownloadBackup?: () => void;
   onOpenHostingerModal?: () => void;
+  onSalvarHostinger?: () => void;
+  hostingerSalvando?: boolean;
+  hostingerUltimoSalvo?: string | null;
   totalSubstituicoes: number;
   totalAulasMinistradas?: number;
   onOpenNovaTurmaModal?: () => void;
@@ -59,6 +62,9 @@ export const Header: React.FC<HeaderProps> = ({
   setIsAIOpen,
   onDownloadBackup,
   onOpenHostingerModal,
+  onSalvarHostinger,
+  hostingerSalvando = false,
+  hostingerUltimoSalvo = null,
   totalSubstituicoes,
   totalAulasMinistradas = 0,
   onOpenNovaTurmaModal,
@@ -154,10 +160,42 @@ export const Header: React.FC<HeaderProps> = ({
               {firebaseStatus === 'conectado'
                 ? 'Nuvem Conectada'
                 : firebaseStatus === 'conectando'
-                ? 'Conectando à Nuvem...'
+                ? 'Conectando...'
                 : 'Modo Local'}
             </span>
           </div>
+
+          {/* Hostinger Storage Persistence Button */}
+          {onSalvarHostinger && (
+            <button
+              type="button"
+              id="header-btn-salvar-hostinger"
+              onClick={onSalvarHostinger}
+              disabled={hostingerSalvando}
+              title={
+                hostingerUltimoSalvo
+                  ? `Dados salvos na Hostinger às ${hostingerUltimoSalvo}. Clique para salvar tudo agora no servidor.`
+                  : 'Salvar todas as informações digitadas no servidor Hostinger (esc.riossistem.com.br)'
+              }
+              className={`flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg border text-xs font-semibold transition-all shadow-2xs ${
+                hostingerSalvando
+                  ? 'bg-amber-50 text-amber-800 border-amber-300 animate-pulse'
+                  : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200/80 hover:border-indigo-300'
+              }`}
+            >
+              <CloudUpload className={`w-3.5 h-3.5 ${hostingerSalvando ? 'animate-bounce text-amber-600' : 'text-indigo-600'}`} />
+              <span className="hidden sm:inline">
+                {hostingerSalvando
+                  ? 'Salvando na Hostinger...'
+                  : hostingerUltimoSalvo
+                  ? `Hostinger: Salvo (${hostingerUltimoSalvo})`
+                  : 'Salvar na Hostinger'}
+              </span>
+              <span className="sm:hidden">
+                {hostingerSalvando ? 'Salvando...' : 'Hostinger'}
+              </span>
+            </button>
+          )}
 
           <div className="text-right hidden sm:block">
             <p className="text-xs font-medium text-slate-500">Sábado, 10 de Setembro</p>

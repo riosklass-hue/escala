@@ -38,6 +38,17 @@ import {
   salvarMatrizesNoStorage,
   MATRIZES_CURSOS_OFICIAIS,
 } from './data/matrizesCursos';
+import {
+  INITIAL_TURMAS,
+  INITIAL_PROFESSORES,
+  INITIAL_ESCOLAS,
+  INITIAL_USUARIOS,
+} from './data/initialData';
+import {
+  salvarTudoNaHostinger,
+  carregarDaHostinger,
+  obterStatusHostinger,
+} from './services/hostingerStorage';
 import { MatrizesCursosModal } from './components/MatrizesCursosModal';
 import { TelaLogin } from './components/TelaLogin';
 import { ModalGerenciamentoSenhas } from './components/ModalGerenciamentoSenhas';
@@ -84,6 +95,116 @@ export default function App() {
   const [escolas, setEscolas] = useState<Escola[]>([]);
   const [historico, setHistorico] = useState<HistoricoSubstituicao[]>([]);
   const [aulasMinistradas, setAulasMinistradas] = useState<AulaMinistradaRecord[]>([]);
+
+  // Estados de Persistência no Servidor Hostinger
+  const [hostingerSalvando, setHostingerSalvando] = useState<boolean>(false);
+  const [hostingerUltimoSalvo, setHostingerUltimoSalvo] = useState<string | null>(null);
+
+  // Carrega e sincroniza dados persistidos diretamente no servidor Hostinger (esc.riossistem.com.br)
+  useEffect(() => {
+    let ativo = true;
+
+    const carregarHostinger = async () => {
+      try {
+        const dadosHostinger = await carregarDaHostinger();
+        if (!ativo) return;
+
+        if (dadosHostinger && typeof dadosHostinger === 'object') {
+          let teveDados = false;
+          if (Array.isArray(dadosHostinger.turmas) && dadosHostinger.turmas.length > 0) {
+            setTurmas(dadosHostinger.turmas);
+            teveDados = true;
+          }
+          if (Array.isArray(dadosHostinger.professores) && dadosHostinger.professores.length > 0) {
+            setProfessores(dadosHostinger.professores);
+            teveDados = true;
+          }
+          if (Array.isArray(dadosHostinger.escolas) && dadosHostinger.escolas.length > 0) {
+            setEscolas(dadosHostinger.escolas);
+            teveDados = true;
+          }
+          if (Array.isArray(dadosHostinger.matrizes) && dadosHostinger.matrizes.length > 0) {
+            setMatrizes(dadosHostinger.matrizes);
+          }
+          if (Array.isArray(dadosHostinger.aulasMinistradas) && dadosHostinger.aulasMinistradas.length > 0) {
+            setAulasMinistradas(dadosHostinger.aulasMinistradas);
+          }
+          if (Array.isArray(dadosHostinger.historico) && dadosHostinger.historico.length > 0) {
+            setHistorico(dadosHostinger.historico);
+          }
+          if (Array.isArray(dadosHostinger.usuarios) && dadosHostinger.usuarios.length > 0) {
+            setUsuarios(dadosHostinger.usuarios);
+          }
+
+          if (dadosHostinger.ultimaAtualizacao) {
+            const dt = new Date(dadosHostinger.ultimaAtualizacao);
+            setHostingerUltimoSalvo(
+              dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            );
+          } else if (teveDados) {
+            setHostingerUltimoSalvo(
+              new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+            );
+          }
+        } else {
+          // Inicializa dados padrão na Hostinger se o arquivo ainda estiver zerado
+          setTurmas(INITIAL_TURMAS);
+          setProfessores(INITIAL_PROFESSORES);
+          setEscolas(INITIAL_ESCOLAS);
+          setUsuarios(INITIAL_USUARIOS);
+          setMatrizes(MATRIZES_CURSOS_OFICIAIS);
+
+          salvarTudoNaHostinger({
+            turmas: INITIAL_TURMAS,
+            professores: INITIAL_PROFESSORES,
+            escolas: INITIAL_ESCOLAS,
+            matrizes: MATRIZES_CURSOS_OFICIAIS,
+            historico: [],
+            aulasMinistradas: [],
+            usuarios: INITIAL_USUARIOS,
+          }).then((res) => {
+            if (res.success && ativo) {
+              setHostingerUltimoSalvo(
+                new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+              );
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('[Hostinger Storage] Falha ao sincronizar dados iniciais:', err);
+      }
+    };
+
+    carregarHostinger();
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  // Salvamento automático contínuo na Hostinger: qualquer alteração feita no sistema é gravada
+  useEffect(() => {
+    if (turmas.length === 0 && professores.length === 0) return;
+
+    const timer = setTimeout(() => {
+      salvarTudoNaHostinger({
+        turmas,
+        professores,
+        escolas,
+        matrizes,
+        historico,
+        aulasMinistradas,
+        usuarios,
+      }).then((res) => {
+        if (res.success) {
+          setHostingerUltimoSalvo(
+            new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+          );
+        }
+      });
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [turmas, professores, escolas, matrizes, historico, aulasMinistradas]);
 
   // Limpeza de caches legados de versões anteriores (sem apagar dados de negócio do Firestore)
   useEffect(() => {
@@ -1025,6 +1146,34 @@ export default function App() {
     }
   };
 
+  const handleSalvarHostingerManual = async () => {
+    setHostingerSalvando(true);
+    try {
+      const res = await salvarTudoNaHostinger({
+        turmas,
+        professores,
+        escolas,
+        matrizes,
+        historico,
+        aulasMinistradas,
+        usuarios,
+      });
+      if (res.success) {
+        const hora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        setHostingerUltimoSalvo(hora);
+        showToast(
+          `Sucesso! Todas as informações (${turmas.length} turmas, ${professores.length} docentes, ${escolas.length} escolas, ementas e diário) foram salvas no servidor Hostinger (esc.riossistem.com.br)!`
+        );
+      } else {
+        showToast(`Aviso Hostinger: ${res.message}`);
+      }
+    } catch {
+      showToast('Erro ao contatar o servidor Hostinger para salvar.');
+    } finally {
+      setHostingerSalvando(false);
+    }
+  };
+
   const handleDownloadBackup = () => {
     try {
       const backupData = {
@@ -1155,6 +1304,9 @@ export default function App() {
           setIsAIOpen={setIsAIOpen}
           onDownloadBackup={handleDownloadBackup}
           onOpenHostingerModal={() => setIsHostingerModalOpen(true)}
+          onSalvarHostinger={handleSalvarHostingerManual}
+          hostingerSalvando={hostingerSalvando}
+          hostingerUltimoSalvo={hostingerUltimoSalvo}
           totalSubstituicoes={historico.length}
           totalAulasMinistradas={aulasMinistradas.length}
           onOpenNovaTurmaModal={() => setModalTurma({ isOpen: true, turmaParaEditar: null })}

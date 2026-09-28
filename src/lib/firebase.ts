@@ -148,38 +148,74 @@ export async function testFirebaseConnection(): Promise<boolean> {
   }
 }
 
-// Salva um documento individual propagando exceção para o chamador
+import { salvarDocNaHostinger, deletarDocNaHostinger } from '../services/hostingerStorage';
+
+// Salva um documento individual sincronizando tanto na Hostinger quanto no Firestore
 export async function syncSalvarDocumento<T extends { id: string }>(
   colecao: string,
   item: T
 ): Promise<void> {
-  const docRef = doc(db, colecao, item.id);
-  await setDoc(docRef, item, { merge: true });
+  // 1. Grava no servidor Hostinger (garantia de persistência no domínio próprio)
+  try {
+    salvarDocNaHostinger(colecao, item);
+  } catch (err) {
+    console.warn('[Hostinger Storage] Falha ao enviar para Hostinger:', err);
+  }
+
+  // 2. Grava no Firestore se disponível
+  try {
+    const docRef = doc(db, colecao, item.id);
+    await setDoc(docRef, item, { merge: true });
+  } catch (err) {
+    console.warn('[Firestore] Aviso ao salvar documento no Firebase:', err);
+  }
 }
 
-// Salva um lote de documentos propagando exceção para o chamador
+// Salva um lote de documentos propagando tanto para Hostinger quanto Firestore
 export async function syncSalvarLote<T extends { id: string }>(
   colecao: string,
   itens: T[]
 ): Promise<void> {
   if (!itens || itens.length === 0) return;
-  const batch = writeBatch(db);
-  for (const item of itens) {
+
+  // Envia lote para a Hostinger
+  itens.forEach((item) => {
     if (item && item.id) {
-      const docRef = doc(db, colecao, item.id);
-      batch.set(docRef, item, { merge: true });
+      salvarDocNaHostinger(colecao, item);
     }
+  });
+
+  try {
+    const batch = writeBatch(db);
+    for (const item of itens) {
+      if (item && item.id) {
+        const docRef = doc(db, colecao, item.id);
+        batch.set(docRef, item, { merge: true });
+      }
+    }
+    await batch.commit();
+  } catch (err) {
+    console.warn('[Firestore] Aviso no lote Firebase:', err);
   }
-  await batch.commit();
 }
 
-// Remove um documento do Firestore propagando exceção para o chamador
+// Remove um documento do Hostinger e do Firestore
 export async function syncDeletarDocumento(
   colecao: string,
   id: string
 ): Promise<void> {
-  const docRef = doc(db, colecao, id);
-  await deleteDoc(docRef);
+  try {
+    deletarDocNaHostinger(colecao, id);
+  } catch (err) {
+    console.warn('[Hostinger Storage] Falha ao remover na Hostinger:', err);
+  }
+
+  try {
+    const docRef = doc(db, colecao, id);
+    await deleteDoc(docRef);
+  } catch (err) {
+    console.warn('[Firestore] Aviso ao remover no Firebase:', err);
+  }
 }
 
 // Escuta alterações em tempo real de uma coleção com propagação visível de erro

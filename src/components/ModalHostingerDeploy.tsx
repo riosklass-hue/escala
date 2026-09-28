@@ -48,6 +48,21 @@ export const ModalHostingerDeploy: React.FC<ModalHostingerDeployProps> = ({ isOp
             {busy === kind ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}{kind === 'hostinger' ? 'Baixar Pacote Hostinger (.ZIP)' : 'Baixar Código-Fonte (.ZIP)'}
           </button>
         </section>)}
+
+        <section className="border border-emerald-200 bg-emerald-50/50 rounded-xl p-5">
+          <h4 className="font-bold text-emerald-900">💾 Banco de Dados & Informações Salvas na Hostinger</h4>
+          <p className="text-xs text-emerald-700 mt-1">
+            Todas as turmas, professores, escolas, ementas, diário de aulas e matrizes digitadas são salvas automaticamente no disco do seu servidor Hostinger (<code className="bg-emerald-100 px-1 py-0.5 rounded">public_html/api/data/rios_database.json</code>).
+          </p>
+          <a
+            href="/api/dados?action=download_backup"
+            download
+            className="mt-3 inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl px-4 py-2.5 font-semibold text-xs transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Baixar Backup dos Dados Salvos na Hostinger (.JSON)
+          </a>
+        </section>
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4"><p className="font-semibold">Antes de publicar</p><p className="text-xs mt-1">Enviar somente a interface para public_html não executa o servidor. Configure o backend Node.js e as rotas /api para usar a IA e os downloads. Mantenha chaves privadas, arquivos .env e pacotes ZIP fora da pasta pública.</p></div>
         <button type="button" onClick={() => window.open(window.location.href, '_blank', 'noopener,noreferrer')} className="text-indigo-700 inline-flex items-center gap-2"><ExternalLink className="w-4 h-4" />Abrir Sistema em Nova Aba</button>
       </div>
