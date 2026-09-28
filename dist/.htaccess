@@ -8,6 +8,10 @@
   RewriteEngine On
   RewriteBase /
   
+  # Roteamento nativo das APIs PHP de persistência Hostinger
+  RewriteRule ^api/dados/?$ api/dados.php [L,QSA]
+  RewriteRule ^api/storage/?$ api/dados.php [L,QSA]
+
   # Não reescreve requisições para arquivos ou pastas reais
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
