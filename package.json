@@ -10,7 +10,8 @@
     "package:hostinger": "node scripts/package-hostinger.js",
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js hostinger_public_html.zip",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "tsx src/testRunner.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
