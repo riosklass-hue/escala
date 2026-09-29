@@ -1,10 +1,5 @@
 {
-  "turmas": [
-    {
-      "id": "turma-teste",
-      "codigo": "TESTE 1"
-    }
-  ],
+  "turmas": [],
   "professores": [],
   "escolas": [],
   "matrizes": [],
@@ -12,5 +7,5 @@
   "aulasMinistradas": [],
   "usuarios": [],
   "auditoria": [],
-  "ultimaAtualizacao": "2026-09-28T04:33:59.261Z"
+  "ultimaAtualizacao": "2026-09-28T04:34:04.469Z"
 }

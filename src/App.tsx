@@ -93,6 +93,7 @@ export default function App() {
   const [turmas, setTurmas] = useState<Turma[]>([]);
   const [professores, setProfessores] = useState<Professor[]>([]);
   const [escolas, setEscolas] = useState<Escola[]>([]);
+  const [matrizes, setMatrizes] = useState<MatrizCursoOficial[]>(() => obterMatrizesIniciais());
   const [historico, setHistorico] = useState<HistoricoSubstituicao[]>([]);
   const [aulasMinistradas, setAulasMinistradas] = useState<AulaMinistradaRecord[]>([]);
 
@@ -271,8 +272,6 @@ export default function App() {
     turma: null,
     componente: null,
   });
-
-  const [matrizes, setMatrizes] = useState<MatrizCursoOficial[]>(() => obterMatrizesIniciais());
 
   const [modalMatrizState, setModalMatrizState] = useState<{
     isOpen: boolean;
