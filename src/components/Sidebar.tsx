@@ -37,6 +37,7 @@ interface SidebarProps {
   usuarioLogado?: Usuario | null;
   onOpenGerenciarSenhas?: () => void;
   onLogout?: () => void;
+  onOpenGoogleClassroom?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -53,6 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   usuarioLogado,
   onOpenGerenciarSenhas,
   onLogout,
+  onOpenGoogleClassroom,
 }) => {
   const navItemsPrincipal: Array<{
     id: ActiveTab;
@@ -247,6 +249,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
               Simulador
             </span>
           </button>
+
+          {onOpenGoogleClassroom && (
+            <button
+              id="sidebar-btn-classroom"
+              onClick={onOpenGoogleClassroom}
+              className="w-full p-2.5 rounded-lg flex items-center justify-between text-left transition-all bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/50 hover:text-white border border-emerald-800/60 cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <GraduationCap className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-semibold">Google Classroom</span>
+              </div>
+              <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                Workspace
+              </span>
+            </button>
+          )}
         </div>
       </nav>
 

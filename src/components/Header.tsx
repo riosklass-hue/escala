@@ -12,6 +12,7 @@ import {
   LogOut,
   User,
   Cloud,
+  GraduationCap,
 } from 'lucide-react';
 import { Usuario } from '../types/rios';
 
@@ -51,6 +52,7 @@ interface HeaderProps {
   onOpenGerenciarSenhas?: () => void;
   onLogout?: () => void;
   firebaseStatus?: 'conectando' | 'conectado' | 'offline';
+  onOpenGoogleClassroom?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -72,6 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenGerenciarSenhas,
   onLogout,
   firebaseStatus = 'conectado',
+  onOpenGoogleClassroom,
 }) => {
   const [currentTime, setCurrentTime] = useState<string>('19:42');
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
@@ -194,6 +197,21 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="sm:hidden">
                 {hostingerSalvando ? 'Salvando...' : 'Hostinger'}
               </span>
+            </button>
+          )}
+
+          {/* Google Classroom Integration Plugin Button */}
+          {onOpenGoogleClassroom && (
+            <button
+              type="button"
+              id="header-btn-google-classroom"
+              onClick={onOpenGoogleClassroom}
+              title="Abrir Plugin Google Classroom (Sincronização de Turmas e Mural)"
+              className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg border text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200/80 hover:border-emerald-300 transition-all shadow-2xs cursor-pointer"
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-emerald-600" />
+              <span className="hidden sm:inline">Google Classroom</span>
+              <span className="sm:hidden">Classroom</span>
             </button>
           )}
 

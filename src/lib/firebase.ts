@@ -36,7 +36,7 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 // Conecta ao Firestore com o DatabaseId configurado
 export const db = getFirestore(
   app,
-  firebaseConfig.firestoreDatabaseId || undefined
+  (firebaseConfig as any).firestoreDatabaseId || undefined
 );
 
 // Conecta ao Firebase Authentication

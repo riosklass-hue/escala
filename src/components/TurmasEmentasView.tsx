@@ -40,6 +40,7 @@ interface TurmasEmentasViewProps {
   onOpenEditarComponente: (turma: Turma, componente: ComponenteDaTurma) => void;
   onConcluirComponente: (turmaId: string, compId: string) => void;
   onAdicionarComponente?: (turma: Turma) => void;
+  onOpenGoogleClassroom?: () => void;
 }
 
 export const TurmasEmentasView: React.FC<TurmasEmentasViewProps> = ({
@@ -57,6 +58,7 @@ export const TurmasEmentasView: React.FC<TurmasEmentasViewProps> = ({
   onOpenEditarComponente,
   onConcluirComponente,
   onAdicionarComponente,
+  onOpenGoogleClassroom,
 }) => {
   const [busca, setBusca] = useState('');
   const [filtroTurno, setFiltroTurno] = useState<string>('TODOS');
@@ -162,6 +164,19 @@ export const TurmasEmentasView: React.FC<TurmasEmentasViewProps> = ({
             >
               Recolher Ementas
             </button>
+            {onOpenGoogleClassroom && (
+              <button
+                type="button"
+                id="btn-turmas-google-classroom"
+                onClick={onOpenGoogleClassroom}
+                className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-xs rounded-xl border border-emerald-200 shadow-2xs transition-all cursor-pointer"
+                title="Sincronizar turmas e avisos com o Google Classroom"
+              >
+                <GraduationCap className="w-4 h-4 text-emerald-600" />
+                <span>Google Classroom</span>
+              </button>
+            )}
+
             <button
               type="button"
               id="btn-abrir-matrizes-oficiais"
@@ -328,6 +343,18 @@ export const TurmasEmentasView: React.FC<TurmasEmentasViewProps> = ({
                               <AlertTriangle className="w-3 h-3 text-amber-600" />
                               {componentesSemProf} disciplina(s) sem professor
                             </span>
+                          )}
+                          {turma.googleClassroomId && (
+                            <a
+                              href={turma.googleClassroomLink || `https://classroom.google.com/c/${turma.googleClassroomId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 flex items-center gap-1 transition-colors"
+                              title="Turma integrada ao Google Classroom. Clique para abrir."
+                            >
+                              <GraduationCap className="w-3 h-3 text-emerald-600" />
+                              Google Classroom {turma.googleClassroomCode ? `(${turma.googleClassroomCode})` : ''}
+                            </a>
                           )}
                         </div>
 

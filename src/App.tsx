@@ -56,6 +56,7 @@ import { ModalHostingerDeploy } from './components/ModalHostingerDeploy';
 import { MobileProfessorView } from './components/MobileProfessorView';
 import { AIAssistantDrawer } from './components/AIAssistantDrawer';
 import { AppDocente } from './components/AppDocente';
+import { GoogleClassroomModal } from './components/GoogleClassroomModal';
 import { Sparkles, CheckCircle2, ShieldCheck, X, Loader2 } from 'lucide-react';
 import {
   testFirebaseConnection,
@@ -63,6 +64,7 @@ import {
   subscribeDocumento,
   subscribeAulasDocente,
   syncSalvarDocumento,
+  syncSalvarLote,
   syncDeletarDocumento,
   listarIdsDocumentos,
   auth,
@@ -283,6 +285,7 @@ export default function App() {
   });
 
   const [isHostingerModalOpen, setIsHostingerModalOpen] = useState<boolean>(false);
+  const [isGoogleClassroomOpen, setIsGoogleClassroomOpen] = useState<boolean>(false);
 
   // Toast Notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -860,6 +863,34 @@ export default function App() {
     }
   };
 
+  const handleImportarTurmasClassroom = async (novasTurmas: Turma[]) => {
+    if (!novasTurmas || novasTurmas.length === 0) return;
+    try {
+      const idsExistentes = new Set(turmas.map((t) => t.id));
+      const turmasNovas = novasTurmas.filter((t) => !idsExistentes.has(t.id));
+
+      if (turmasNovas.length === 0) {
+        showToast('As turmas selecionadas já constam cadastradas no RIOS.');
+        return;
+      }
+
+      setTurmas((prev) => [...prev, ...turmasNovas]);
+      await syncSalvarLote('turmas', turmasNovas);
+
+      registrarLogAuditoria({
+        usuarioAtual: usuarioLogado,
+        acao: 'CRIAR',
+        categoria: 'TURMAS',
+        detalhes: `Importadas ${turmasNovas.length} turmas diretamente do Google Classroom.`,
+      });
+
+      showToast(`${turmasNovas.length} turma(s) do Google Classroom sincronizada(s) com sucesso!`);
+    } catch (err) {
+      console.error('[Google Classroom] Erro ao salvar turmas importadas:', err);
+      showToast('Erro ao gravar turmas importadas no banco de dados.');
+    }
+  };
+
   const handleOpenCadastrarEscola = () => {
     setModalEscola({ isOpen: true, escolaParaEditar: null });
   };
@@ -1289,6 +1320,7 @@ export default function App() {
           usuarioLogado={usuarioLogado}
           onOpenGerenciarSenhas={() => setIsGerenciarSenhasOpen(true)}
           onLogout={handleLogout}
+          onOpenGoogleClassroom={() => setIsGoogleClassroomOpen(true)}
         />
       </div>
 
@@ -1313,6 +1345,7 @@ export default function App() {
           onOpenGerenciarSenhas={() => setIsGerenciarSenhasOpen(true)}
           onLogout={handleLogout}
           firebaseStatus={firebaseStatus}
+          onOpenGoogleClassroom={() => setIsGoogleClassroomOpen(true)}
         />
 
         <section className="flex-1 p-4 sm:p-6 flex flex-col gap-6 overflow-y-auto h-full">
@@ -1324,6 +1357,7 @@ export default function App() {
               onSaveMatriz={handleSaveMatriz}
               onDeleteMatriz={handleDeleteMatriz}
               onRestaurarMatrizesPadrao={handleRestaurarMatrizesPadrao}
+              onOpenGoogleClassroom={() => setIsGoogleClassroomOpen(true)}
               onOpenCadastrarTurma={() =>
                 setModalTurma({ isOpen: true, turmaParaEditar: null, matrizInicial: null })
               }
@@ -1687,6 +1721,16 @@ export default function App() {
       <ModalHostingerDeploy
         isOpen={isHostingerModalOpen}
         onClose={() => setIsHostingerModalOpen(false)}
+      />
+
+      {/* Plugin de Integração Oficial com o Google Classroom */}
+      <GoogleClassroomModal
+        isOpen={isGoogleClassroomOpen}
+        onClose={() => setIsGoogleClassroomOpen(false)}
+        turmasExistentes={turmas}
+        escolas={escolas}
+        professores={professores}
+        onImportarTurmas={handleImportarTurmasClassroom}
       />
     </div>
   );

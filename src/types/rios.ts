@@ -100,6 +100,9 @@ export interface Turma {
   diaSemana: DiaSemana; // Ex: Segunda-feira (FIXO)
   horario: string; // Ex: 18:30 – 22:30 (FIXO)
   componentes: ComponenteDaTurma[]; // Matriz Curricular (FIXO)
+  googleClassroomId?: string; // ID da Turma no Google Classroom
+  googleClassroomLink?: string; // Link direto para a sala no Google Classroom
+  googleClassroomCode?: string; // Código de inscrição do Classroom
 }
 
 export interface HistoricoSubstituicao {
