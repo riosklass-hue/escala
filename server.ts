@@ -87,11 +87,46 @@ function getGeminiClient(): GoogleGenAI {
   return geminiClient;
 }
 
+// Suporte oficial para integração com OpenAI API (Hostinger Node.js & class.riossistem.com.br)
+async function askOpenAI(apiKey: string, systemPrompt: string, userPrompt: string): Promise<string> {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Pergunta do Gestor: "${userPrompt}"` },
+      ],
+      temperature: 0.7,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI API error (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "Sem resposta gerada pela OpenAI.";
+}
+
 // Health check
 app.get("/api/health", (_req, res) => {
+  const hasGemini = !!process.env.GEMINI_API_KEY;
+  const hasOpenAI = !!process.env.OPENAI_API_KEY;
+
   res.json({
     status: "ok",
-    hasApiKey: !!process.env.GEMINI_API_KEY,
+    hasApiKey: hasGemini || hasOpenAI,
+    providers: {
+      openai: hasOpenAI,
+      gemini: hasGemini,
+    },
+    activeProvider: hasOpenAI ? "OpenAI (gpt-4o-mini)" : hasGemini ? "Gemini (gemini-3.8-flash)" : "Motor Local",
     system: "RIOS – Gestão de Escalas",
   });
 });
@@ -273,16 +308,16 @@ app.post("/api/ai/ask", async (req, res) => {
       return res.status(400).json({ error: "Prompt é obrigatório." });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
+
+    if (!openaiKey && !geminiKey) {
       return res.json({
         fallback: true,
         answer: null,
-        message: "Chave GEMINI_API_KEY não configurada. Ativando motor de regras nativo.",
+        message: "Nenhuma chave de IA (OPENAI_API_KEY ou GEMINI_API_KEY) configurada. Ativando motor de regras nativo.",
       });
     }
-
-    const ai = getGeminiClient();
 
     const systemPrompt = `Você é a IA assistente oficial do sistema "RIOS – GESTÃO DE ESCALAS".
 Seu papel exclusivo é ser o ASSISTENTE DE ALOCAÇÃO E SUBSTITUIÇÃO DE PROFESSORES.
@@ -310,20 +345,44 @@ DADOS ATUAIS DO SISTEMA RIOS:
 ${riosSummary || "Dados padrões do sistema RIOS carregados."}
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: `${systemPrompt}\n\nPergunta do Gestor: "${prompt}"` }],
-        },
-      ],
-    });
+    // 1. Tenta OpenAI se a chave estiver configurada (padrão Hostinger Node.js)
+    if (openaiKey) {
+      try {
+        const answer = await askOpenAI(openaiKey, systemPrompt, prompt);
+        return res.json({ answer, provider: "openai", fallback: false });
+      } catch (err: any) {
+        console.warn("[RIOS] Erro ao consultar OpenAI:", err.message);
+        if (!geminiKey) {
+          throw err;
+        }
+        console.log("[RIOS] Alternando para fallback Gemini...");
+      }
+    }
 
-    const answer = response.text || "Sem resposta gerada.";
-    return res.json({ answer, fallback: false });
+    // 2. Utiliza Gemini
+    if (geminiKey) {
+      const ai = getGeminiClient();
+      const response = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: `${systemPrompt}\n\nPergunta do Gestor: "${prompt}"` }],
+          },
+        ],
+      });
+
+      const answer = response.text || "Sem resposta gerada.";
+      return res.json({ answer, provider: "gemini", fallback: false });
+    }
+
+    return res.json({
+      fallback: true,
+      answer: null,
+      message: "Falha ao consultar os provedores de IA configurados.",
+    });
   } catch (error: any) {
-    console.error("Gemini server error:", error);
+    console.error("AI Assistant server error:", error);
     return res.json({
       fallback: true,
       error: error?.message || "Erro de conexão com a IA.",
