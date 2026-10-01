@@ -99,10 +99,40 @@ function getGeminiClient() {
   }
   return geminiClient;
 }
+async function askOpenAI(apiKey, systemPrompt, userPrompt) {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Pergunta do Gestor: "${userPrompt}"` }
+      ],
+      temperature: 0.7
+    })
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenAI API error (${response.status}): ${errorText}`);
+  }
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "Sem resposta gerada pela OpenAI.";
+}
 app.get("/api/health", (_req, res) => {
+  const hasGemini = !!process.env.GEMINI_API_KEY;
+  const hasOpenAI = !!process.env.OPENAI_API_KEY;
   res.json({
     status: "ok",
-    hasApiKey: !!process.env.GEMINI_API_KEY,
+    hasApiKey: hasGemini || hasOpenAI,
+    providers: {
+      openai: hasOpenAI,
+      gemini: hasGemini
+    },
+    activeProvider: hasOpenAI ? "OpenAI (gpt-4o-mini)" : hasGemini ? "Gemini (gemini-3.8-flash)" : "Motor Local",
     system: "RIOS \u2013 Gest\xE3o de Escalas"
   });
 });
@@ -261,15 +291,15 @@ app.post("/api/ai/ask", async (req, res) => {
     if (!prompt) {
       return res.status(400).json({ error: "Prompt \xE9 obrigat\xF3rio." });
     }
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!openaiKey && !geminiKey) {
       return res.json({
         fallback: true,
         answer: null,
-        message: "Chave GEMINI_API_KEY n\xE3o configurada. Ativando motor de regras nativo."
+        message: "Nenhuma chave de IA (OPENAI_API_KEY ou GEMINI_API_KEY) configurada. Ativando motor de regras nativo."
       });
     }
-    const ai = getGeminiClient();
     const systemPrompt = `Voc\xEA \xE9 a IA assistente oficial do sistema "RIOS \u2013 GEST\xC3O DE ESCALAS".
 Seu papel exclusivo \xE9 ser o ASSISTENTE DE ALOCA\xC7\xC3O E SUBSTITUI\xC7\xC3O DE PROFESSORES.
 
@@ -295,21 +325,41 @@ DADOS ATUAIS DO SISTEMA RIOS:
 ===========================================================
 ${riosSummary || "Dados padr\xF5es do sistema RIOS carregados."}
 `;
-    const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: `${systemPrompt}
+    if (openaiKey) {
+      try {
+        const answer = await askOpenAI(openaiKey, systemPrompt, prompt);
+        return res.json({ answer, provider: "openai", fallback: false });
+      } catch (err) {
+        console.warn("[RIOS] Erro ao consultar OpenAI:", err.message);
+        if (!geminiKey) {
+          throw err;
+        }
+        console.log("[RIOS] Alternando para fallback Gemini...");
+      }
+    }
+    if (geminiKey) {
+      const ai = getGeminiClient();
+      const response = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: `${systemPrompt}
 
 Pergunta do Gestor: "${prompt}"` }]
-        }
-      ]
+          }
+        ]
+      });
+      const answer = response.text || "Sem resposta gerada.";
+      return res.json({ answer, provider: "gemini", fallback: false });
+    }
+    return res.json({
+      fallback: true,
+      answer: null,
+      message: "Falha ao consultar os provedores de IA configurados."
     });
-    const answer = response.text || "Sem resposta gerada.";
-    return res.json({ answer, fallback: false });
   } catch (error) {
-    console.error("Gemini server error:", error);
+    console.error("AI Assistant server error:", error);
     return res.json({
       fallback: true,
       error: error?.message || "Erro de conex\xE3o com a IA.",
