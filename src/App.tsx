@@ -90,11 +90,11 @@ export default function App() {
   const [isGerenciarSenhasOpen, setIsGerenciarSenhasOpen] = useState<boolean>(false);
   const [selectedProfId, setSelectedProfId] = useState<string>('');
 
-  // Estados em memória de dados protegidos: iniciam estritamente VAZIOS antes do login
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [turmas, setTurmas] = useState<Turma[]>([]);
-  const [professores, setProfessores] = useState<Professor[]>([]);
-  const [escolas, setEscolas] = useState<Escola[]>([]);
+  // Estados em memória com dados iniciais completos para renderização instantânea
+  const [usuarios, setUsuarios] = useState<Usuario[]>(() => INITIAL_USUARIOS);
+  const [turmas, setTurmas] = useState<Turma[]>(() => INITIAL_TURMAS);
+  const [professores, setProfessores] = useState<Professor[]>(() => INITIAL_PROFESSORES);
+  const [escolas, setEscolas] = useState<Escola[]>(() => INITIAL_ESCOLAS);
   const [matrizes, setMatrizes] = useState<MatrizCursoOficial[]>(() => obterMatrizesIniciais());
   const [historico, setHistorico] = useState<HistoricoSubstituicao[]>([]);
   const [aulasMinistradas, setAulasMinistradas] = useState<AulaMinistradaRecord[]>([]);
