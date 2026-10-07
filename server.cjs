@@ -35,7 +35,10 @@ var firebaseConfigFile = import_path.default.join(process.cwd(), "firebase-apple
 var firebaseConfig = import_fs.default.existsSync(firebaseConfigFile) ? JSON.parse(import_fs.default.readFileSync(firebaseConfigFile, "utf8")) : {};
 import_dotenv.default.config();
 var app = (0, import_express.default)();
-var PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3;
+var portArgIndex = process.argv.indexOf("--port");
+var argPort = portArgIndex !== -1 && process.argv[portArgIndex + 1] ? parseInt(process.argv[portArgIndex + 1], 10) : null;
+var isDev = process.env.NODE_ENV !== "production";
+var PORT = argPort || (isDev ? 3e3 : process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3);
 app.use(import_express.default.json({ limit: "5mb" }));
 function requireRoles(roles) {
   return async (req, res, next) => {
