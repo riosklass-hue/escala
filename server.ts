@@ -446,10 +446,10 @@ REGRAS:
 5. Retorne APENAS o JSON puro sem marcadores Markdown.`;
 
     // 1. Tenta Gemini (prioridade padrão AI Studio)
-    if (geminiKey) {
+    if (geminiKey && geminiKey !== "MY_GEMINI_API_KEY") {
       try {
         const ai = getGeminiClient();
-        const response = await ai.models.generateContent({
+        const callPromise = ai.models.generateContent({
           model: "gemini-3.8-flash",
           contents: [
             {
@@ -462,6 +462,11 @@ REGRAS:
           },
         });
 
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Timeout Gemini")), 7000)
+        );
+
+        const response: any = await Promise.race([callPromise, timeoutPromise]);
         const raw = (response.text || "").trim();
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -478,10 +483,13 @@ REGRAS:
     }
 
     // 2. Tenta OpenAI se disponível
-    if (openaiKey) {
+    if (openaiKey && !openaiKey.includes("your-openai-key")) {
       try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 7000);
         const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
+          signal: controller.signal,
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${openaiKey}`,
@@ -496,6 +504,7 @@ REGRAS:
             temperature: 0.3,
           }),
         });
+        clearTimeout(timer);
 
         if (aiResponse.ok) {
           const data = await aiResponse.json();

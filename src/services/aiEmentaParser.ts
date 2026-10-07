@@ -39,29 +39,40 @@ export function processarEmentaHeuristica(texto: string): EmentaProcessadaResult
   // 1. Tenta identificar o nome do curso e a sigla nas primeiras linhas
   for (let i = 0; i < Math.min(linhas.length, 6); i++) {
     const l = linhas[i];
-    const matchCurso = l.match(/(?:curso\s+)?(?:t[ée]cnico\s+(?:em\s+)?|qualifica[çc][ãa]o\s+)?([A-Za-zÀ-ÿ\s]{4,40})/i);
-    if (matchCurso && /t[ée]cnico|enfermagem|inform[áa]tica|administra[çc]|recursos|log[íi]stica|edifica|seguran[çc]|farm[áa]cia|est[ée]tica|sa[úu]de|eletro|mec[âa]n/i.test(l)) {
-      nomeCurso = l.replace(/^(curso|matriz|ementa|plano)\s*[:\-–]?\s*/i, '').trim();
+    if (/t[ée]cnico|enfermagem|inform[áa]tica|administra[çc]|recursos|log[íi]stica|edifica|seguran[çc]|farm[áa]cia|est[ée]tica|sa[úu]de|eletro|mec[âa]n/i.test(l)) {
+      nomeCurso = l
+        .replace(/^(curso\s+)?(t[ée]cnico\s+em\s+)?/i, 'Técnico em ')
+        .replace(/\([A-Z]{2,6}\)/g, '')
+        .replace(/[\-–:]\s*\d+.*$/i, '')
+        .trim();
       break;
     }
   }
 
-  // Tenta extrair sigla
-  const siglaMatch = texto.match(/\b([A-Z]{2,5})\b/);
-  if (siglaMatch && !['PPC', 'MEC', 'EJA', 'PDF', 'DOC', 'TXT'].includes(siglaMatch[1])) {
-    sigla = siglaMatch[1];
+  // Tenta extrair sigla entre parênteses ou em caixa alta
+  const siglaParenMatch = texto.match(/\(([A-Z]{2,6})\)/);
+  if (siglaParenMatch) {
+    sigla = siglaParenMatch[1];
   } else {
-    const palavras = nomeCurso.replace(/t[ée]cnico|em|de|da|do|para/gi, '').trim().split(/\s+/);
-    sigla = palavras.map((p) => p[0]?.toUpperCase()).join('').slice(0, 4) || 'TEC';
+    const siglaMatch = texto.match(/\b([A-Z]{2,5})\b/);
+    if (siglaMatch && !['PPC', 'MEC', 'EJA', 'PDF', 'DOC', 'TXT', 'CURSO'].includes(siglaMatch[1])) {
+      sigla = siglaMatch[1];
+    } else {
+      const palavras = nomeCurso.replace(/t[ée]cnico|em|de|da|do|para/gi, '').trim().split(/\s+/);
+      sigla = palavras.map((p) => p[0]?.toUpperCase()).join('').slice(0, 4) || 'TEC';
+    }
   }
 
   // 2. Extrai disciplinas e cargas horárias
   const unidades: UnidadeCurricularIA[] = [];
-  const regexCarga = /(?:[\(\[\-–:]\s*)?(\d{2,3})\s*(?:h(?:oras?)?|ch)\b/i;
+  const regexCarga = /(?:[\(\[\-–:]\s*)?(\d{2,3})\s*(?:h(?:oras?)?|ch)\b[\)\]]?/i;
 
   linhas.forEach((linha, idx) => {
-    // Ignora linhas que são apenas títulos de seções institucionais ou cabeçalhos
-    if (/^(ementa|matriz|plano de curso|sum[áa]rio|m[óo]dulo\s+\w+|per[íi]odo\s+\d+|semestre\s+\d+|carga hor[áa]ria|componente curricular)$/i.test(linha)) {
+    // Ignora linhas que são cabeçalhos de curso ou seções
+    if (/^(curso|matriz|ementa|plano de curso|sum[áa]rio|m[óo]dulo\s+\w+|per[íi]odo\s+\d+|semestre\s+\d+|carga hor[áa]ria|componente curricular|grade curricular)/i.test(linha)) {
+      return;
+    }
+    if (linha.toLowerCase().includes(nomeCurso.toLowerCase())) {
       return;
     }
 
@@ -79,13 +90,12 @@ export function processarEmentaHeuristica(texto: string): EmentaProcessadaResult
     let nomeLimpo = linha
       .replace(regexCarga, '')
       .replace(/^[\d\.\-\–\*\•\)\(\[\]\s]+/, '')
-      .replace(/[\:\-–]\s*$/, '')
+      .replace(/[\(\)\[\]\:\-–\s]+$/, '')
       .trim();
 
     // Se a linha tem tamanho suficiente para ser uma disciplina (>= 4 caracteres)
     // e não é um texto longo de parágrafo institucional (> 90 caracteres)
     if (nomeLimpo.length >= 4 && nomeLimpo.length <= 85) {
-      // Remove repetições de palavras comuns
       nomeLimpo = nomeLimpo.replace(/^(disciplina|componente|unidade|uc\s*\d*)\s*[:\-–]?\s*/i, '').trim();
 
       if (nomeLimpo.length >= 3 && !unidades.some((u) => u.nome.toLowerCase() === nomeLimpo.toLowerCase())) {
