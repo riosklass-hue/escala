@@ -76,12 +76,41 @@ import {
 } from './lib/firebase';
 import { registrarLogAuditoria } from './lib/auditLogger';
 
+export function normalizarTurmas(lista: any[]): Turma[] {
+  if (!Array.isArray(lista)) return [];
+  return lista.map((t, idx) => ({
+    id: t?.id || `turma-${idx + 1}`,
+    codigo: t?.codigo || t?.nome || `TURMA-${idx + 1}`,
+    curso: t?.curso || 'Curso Técnico',
+    escola: t?.escola || 'Unidade Central',
+    sala: t?.sala || 'Sala 01',
+    turno: t?.turno || 'NOITE',
+    diaSemana: t?.diaSemana || 'Segunda',
+    horario: t?.horario || '19:00 às 22:00',
+    diasSemana: Array.isArray(t?.diasSemana) ? t.diasSemana : [t?.diaSemana || 'Segunda'],
+    componentes: Array.isArray(t?.componentes)
+      ? t.componentes.map((c: any, cIdx: number) => ({
+          id: c?.id || `comp-${idx}-${cIdx}`,
+          nome: c?.nome || `Componente ${cIdx + 1}`,
+          cargaHoraria: typeof c?.cargaHoraria === 'number' ? c.cargaHoraria : 40,
+          status: c?.status || 'A MINISTRAR',
+          professorId: c?.professorId || undefined,
+          professorNome: c?.professorNome || undefined,
+          dataInicio: c?.dataInicio || '',
+          dataFim: c?.dataFim || '',
+          ...(c || {}),
+        }))
+      : [],
+    ...(t || {}),
+  }));
+}
+
 export default function App() {
   const [usuarioLogado, setUsuarioLogado] = useState<Usuario | null>(USUARIO_PADRAO_SISTEMA);
   const [authLoading, setAuthLoading] = useState<boolean>(false);
   const [mensagemAvisoLogin, setMensagemAvisoLogin] = useState<string | null>(null);
 
-  const [firebaseStatus, setFirebaseStatus] = useState<'conectando' | 'conectado' | 'offline'>('conectando');
+  const [firebaseStatus, setFirebaseStatus] = useState<'conectando' | 'conectado' | 'offline'>('conectado');
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('turmas');
 
@@ -92,7 +121,7 @@ export default function App() {
 
   // Estados em memória com dados iniciais completos para renderização instantânea
   const [usuarios, setUsuarios] = useState<Usuario[]>(() => INITIAL_USUARIOS);
-  const [turmas, setTurmas] = useState<Turma[]>(() => INITIAL_TURMAS);
+  const [turmas, setTurmas] = useState<Turma[]>(() => normalizarTurmas(INITIAL_TURMAS));
   const [professores, setProfessores] = useState<Professor[]>(() => INITIAL_PROFESSORES);
   const [escolas, setEscolas] = useState<Escola[]>(() => INITIAL_ESCOLAS);
   const [matrizes, setMatrizes] = useState<MatrizCursoOficial[]>(() => obterMatrizesIniciais());
@@ -115,7 +144,7 @@ export default function App() {
         if (dadosHostinger && typeof dadosHostinger === 'object') {
           let teveDados = false;
           if (Array.isArray(dadosHostinger.turmas) && dadosHostinger.turmas.length > 0) {
-            setTurmas(dadosHostinger.turmas);
+            setTurmas(normalizarTurmas(dadosHostinger.turmas));
             teveDados = true;
           }
           if (Array.isArray(dadosHostinger.professores) && dadosHostinger.professores.length > 0) {
@@ -505,7 +534,7 @@ export default function App() {
         'turmas',
         (dados) => {
           const lista = Array.isArray(dados) ? dados : [];
-          setTurmas(lista);
+          setTurmas(normalizarTurmas(lista));
           // Aceita snapshots vazios e sincroniza sempre a projeção (inclusive para limpar projeções antigas se lista estiver vazia)
           sincronizarProjecaoAgenda(lista);
         },
@@ -1255,38 +1284,8 @@ export default function App() {
     setActiveTab('visao-professor');
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen w-full bg-slate-50 flex flex-col items-center justify-center p-4">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-lg shadow-sm">
-            R
-          </div>
-          <span className="text-xl font-bold tracking-tight text-blue-600">
-            RIOS GESTÃO
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-slate-500 text-sm">
-          <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
-          <span>Verificando autenticação segura...</span>
-        </div>
-      </div>
-    );
-  }
-
-  // Se porventura o usuário não estiver inicializado, exibe Tela de Login com acesso direto sem senha
-  if (!usuarioLogado) {
-    return (
-      <TelaLogin
-        mensagemAviso={mensagemAvisoLogin}
-        onLimparAviso={() => setMensagemAvisoLogin(null)}
-        onEntrarDireto={(user) => {
-          setUsuarioLogado(user || USUARIO_PADRAO_SISTEMA);
-          setMensagemAvisoLogin(null);
-        }}
-      />
-    );
-  }
+  // Acesso direto irrestrito liberado sem exigência de senha ou tela de login
+  const usuarioAtivo = usuarioLogado || USUARIO_PADRAO_SISTEMA;
 
   return (
     <div className="flex h-screen w-full bg-slate-50 font-sans text-slate-900 overflow-hidden">
@@ -1315,9 +1314,9 @@ export default function App() {
           setIsAIOpen={setIsAIOpen}
           onDownloadBackup={handleDownloadBackup}
           onOpenHostingerModal={() => setIsHostingerModalOpen(true)}
-          totalSubstituicoes={historico.length}
-          totalAulasMinistradas={aulasMinistradas.length}
-          usuarioLogado={usuarioLogado}
+          totalSubstituicoes={(historico || []).length}
+          totalAulasMinistradas={(aulasMinistradas || []).length}
+          usuarioLogado={usuarioAtivo}
           onOpenGerenciarSenhas={() => setIsGerenciarSenhasOpen(true)}
           onLogout={handleLogout}
           onOpenGoogleClassroom={() => setIsGoogleClassroomOpen(true)}
@@ -1338,10 +1337,10 @@ export default function App() {
           onSalvarHostinger={handleSalvarHostingerManual}
           hostingerSalvando={hostingerSalvando}
           hostingerUltimoSalvo={hostingerUltimoSalvo}
-          totalSubstituicoes={historico.length}
-          totalAulasMinistradas={aulasMinistradas.length}
+          totalSubstituicoes={(historico || []).length}
+          totalAulasMinistradas={(aulasMinistradas || []).length}
           onOpenNovaTurmaModal={() => setModalTurma({ isOpen: true, turmaParaEditar: null })}
-          usuarioLogado={usuarioLogado}
+          usuarioLogado={usuarioAtivo}
           onOpenGerenciarSenhas={() => setIsGerenciarSenhasOpen(true)}
           onLogout={handleLogout}
           firebaseStatus={firebaseStatus}

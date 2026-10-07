@@ -100,13 +100,14 @@ export const TurmasEmentasView: React.FC<TurmasEmentasViewProps> = ({
 
       if (!busca.trim()) return true;
       const termo = busca.toLowerCase();
-      const matchCodigo = t.codigo.toLowerCase().includes(termo);
-      const matchCurso = t.curso.toLowerCase().includes(termo);
-      const matchEscola = t.escola.toLowerCase().includes(termo);
-      const matchSala = t.sala.toLowerCase().includes(termo);
-      const matchHorario = t.horario.toLowerCase().includes(termo);
-      const matchComponente = t.componentes.some((c) =>
-        c.nome.toLowerCase().includes(termo) ||
+      const matchCodigo = (t.codigo || '').toLowerCase().includes(termo);
+      const matchCurso = (t.curso || '').toLowerCase().includes(termo);
+      const matchEscola = (t.escola || '').toLowerCase().includes(termo);
+      const matchSala = (t.sala || '').toLowerCase().includes(termo);
+      const matchHorario = (t.horario || '').toLowerCase().includes(termo);
+      const compList = Array.isArray(t.componentes) ? t.componentes : [];
+      const matchComponente = compList.some((c) =>
+        (c.nome || '').toLowerCase().includes(termo) ||
         (c.professorNome && c.professorNome.toLowerCase().includes(termo))
       );
 
@@ -115,13 +116,14 @@ export const TurmasEmentasView: React.FC<TurmasEmentasViewProps> = ({
   }, [turmas, busca, filtroTurno, filtroDia]);
 
   // Estatísticas Rápidas
-  const totalTurmas = turmas.length;
+  const totalTurmas = (turmas || []).length;
   const totalComponentes = useMemo(() => {
-    return turmas.reduce((acc, t) => acc + t.componentes.length, 0);
+    return (turmas || []).reduce((acc, t) => acc + (Array.isArray(t.componentes) ? t.componentes.length : 0), 0);
   }, [turmas]);
   const componentesComDocente = useMemo(() => {
-    return turmas.reduce((acc, t) => {
-      return acc + t.componentes.filter((c) => !!c.professorId).length;
+    return (turmas || []).reduce((acc, t) => {
+      const compList = Array.isArray(t.componentes) ? t.componentes : [];
+      return acc + compList.filter((c) => !!c.professorId).length;
     }, 0);
   }, [turmas]);
   const percCobertura = totalComponentes > 0 ? Math.round((componentesComDocente / totalComponentes) * 100) : 100;
@@ -303,8 +305,9 @@ export const TurmasEmentasView: React.FC<TurmasEmentasViewProps> = ({
           {turmasFiltradas.map((turma) => {
             const isExpandida = !!turmasExpandidas[turma.id];
             const metricas = calcularMetricasTurma(turma);
-            const totalHorasTurma = turma.componentes.reduce((acc, c) => acc + (c.cargaHoraria || 0), 0);
-            const componentesSemProf = turma.componentes.filter((c) => !c.professorId).length;
+            const compList = Array.isArray(turma.componentes) ? turma.componentes : [];
+            const totalHorasTurma = compList.reduce((acc, c) => acc + (c.cargaHoraria || 0), 0);
+            const componentesSemProf = compList.filter((c) => !c.professorId).length;
 
             return (
               <div
@@ -410,7 +413,7 @@ export const TurmasEmentasView: React.FC<TurmasEmentasViewProps> = ({
                             Carga da Ementa
                           </span>
                           <span className="text-xs font-bold text-slate-800">
-                            {totalHorasTurma}h ({turma.componentes.length} disc.)
+                            {totalHorasTurma}h ({compList.length} disc.)
                           </span>
                         </div>
                       </div>
@@ -465,13 +468,13 @@ export const TurmasEmentasView: React.FC<TurmasEmentasViewProps> = ({
                       )}
                     </div>
 
-                    {turma.componentes.length === 0 ? (
+                    {compList.length === 0 ? (
                       <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-xs">
                         Nenhuma disciplina cadastrada na ementa desta turma.
                       </div>
                     ) : (
                       <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
-                        {turma.componentes.map((comp, idx) => {
+                        {compList.map((comp, idx) => {
                           const hasProfessor = !!comp.professorId;
                           const profAtual = professores.find((p) => p.id === comp.professorId);
 

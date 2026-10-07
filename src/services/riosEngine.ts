@@ -173,14 +173,15 @@ export function calcularHorasAtuaisProfessor(professorId: string, turmas: Turma[
 }
 
 export function calcularMetricasTurma(turma: Turma) {
-  const cargaTotal = turma.componentes.reduce((acc, c) => acc + c.cargaHoraria, 0);
-  const concluidos = turma.componentes.filter((c) => c.status === 'CONCLUÍDO');
-  const emAndamento = turma.componentes.filter((c) => c.status === 'EM ANDAMENTO');
-  const pendentes = turma.componentes.filter((c) => c.status === 'A MINISTRAR');
+  const componentes = Array.isArray(turma?.componentes) ? turma.componentes : [];
+  const cargaTotal = componentes.reduce((acc, c) => acc + (c.cargaHoraria || 0), 0);
+  const concluidos = componentes.filter((c) => c.status === 'CONCLUÍDO');
+  const emAndamento = componentes.filter((c) => c.status === 'EM ANDAMENTO');
+  const pendentes = componentes.filter((c) => c.status === 'A MINISTRAR');
 
-  const cargaMinistrada = concluidos.reduce((acc, c) => acc + c.cargaHoraria, 0);
-  const cargaEmAndamento = emAndamento.reduce((acc, c) => acc + c.cargaHoraria, 0);
-  const cargaPendente = pendentes.reduce((acc, c) => acc + c.cargaHoraria, 0);
+  const cargaMinistrada = concluidos.reduce((acc, c) => acc + (c.cargaHoraria || 0), 0);
+  const cargaEmAndamento = emAndamento.reduce((acc, c) => acc + (c.cargaHoraria || 0), 0);
+  const cargaPendente = pendentes.reduce((acc, c) => acc + (c.cargaHoraria || 0), 0);
   const cargaRestante = cargaEmAndamento + cargaPendente;
 
   const percentualConcluido = cargaTotal > 0 ? Math.round((cargaMinistrada / cargaTotal) * 100) : 0;
