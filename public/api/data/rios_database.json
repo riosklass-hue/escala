@@ -9,6 +9,9 @@
       "turno": "NOITE",
       "diaSemana": "Terça-feira",
       "horario": "18:30 – 22:30",
+      "diasSemana": [
+        "Terça-feira"
+      ],
       "componentes": [
         {
           "id": "c-rh-1",
@@ -155,6 +158,9 @@
       "turno": "TARDE",
       "diaSemana": "Terça-feira",
       "horario": "13:30 – 17:30",
+      "diasSemana": [
+        "Terça-feira"
+      ],
       "componentes": [
         {
           "id": "c-adm-1",
@@ -290,6 +296,9 @@
       "turno": "NOITE",
       "diaSemana": "Terça-feira",
       "horario": "18:30 – 22:30",
+      "diasSemana": [
+        "Terça-feira"
+      ],
       "componentes": [
         {
           "id": "c-log-1",
@@ -425,6 +434,9 @@
       "turno": "NOITE",
       "diaSemana": "Quarta-feira",
       "horario": "18:30 – 22:30",
+      "diasSemana": [
+        "Quarta-feira"
+      ],
       "componentes": [
         {
           "id": "c-sec-1",
@@ -566,6 +578,9 @@
       "turno": "MANHÃ",
       "diaSemana": "Quinta-feira",
       "horario": "07:30 – 11:30",
+      "diasSemana": [
+        "Quinta-feira"
+      ],
       "componentes": [
         {
           "id": "c-com-1",
@@ -714,6 +729,9 @@
       "turno": "MANHÃ",
       "diaSemana": "Terça-feira",
       "horario": "07:30 – 11:30",
+      "diasSemana": [
+        "Terça-feira"
+      ],
       "componentes": [
         {
           "id": "c-enf-01",
@@ -1511,6 +1529,6 @@
       "ultimoAcesso": "Hoje às 09:10"
     }
   ],
-  "ultimaAtualizacao": "2026-10-07T14:07:51.707Z",
+  "ultimaAtualizacao": "2026-10-07T14:08:37.764Z",
   "servidorOrigem": "Hostinger esc.riossistem.com.br"
 }

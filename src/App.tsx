@@ -1239,7 +1239,7 @@ export default function App() {
         sistema: 'RIOS - Gestão de Escalas',
         versao: '2.0',
         dataExportacao: new Date().toISOString(),
-        usuarioExportador: usuarioLogado ? `${usuarioLogado.nome} (${usuarioLogado.role})` : 'Administrador',
+        usuarioExportador: usuarioLogado ? `${usuarioLogado.nome} (${usuarioLogado.perfil})` : 'Administrador',
         estatisticas: {
           totalTurmas: turmas.length,
           totalProfessores: professores.length,

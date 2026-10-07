@@ -390,13 +390,18 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
   // Filtragem do Relatório 1
   const dadosAlocacaoDocenteFiltrados = useMemo(() => {
     return dadosAlocacaoDocente.filter((item) => {
+      const anyItem = item as any;
       const busca = filtroTexto.toLowerCase();
       const matchBusca =
         !filtroTexto ||
         item.Professor.toLowerCase().includes(busca) ||
-        (item.Turmas && item.Turmas.toLowerCase().includes(busca)) ||
-        (item.Componentes && item.Componentes.toLowerCase().includes(busca)) ||
-        (item.Escolas && item.Escolas.toLowerCase().includes(busca));
+        (anyItem.Turmas && anyItem.Turmas.toLowerCase().includes(busca)) ||
+        (anyItem.TurmasAtivas && anyItem.TurmasAtivas.toLowerCase().includes(busca)) ||
+        (anyItem.TurmasNoAno && anyItem.TurmasNoAno.toLowerCase().includes(busca)) ||
+        (anyItem.Componentes && anyItem.Componentes.toLowerCase().includes(busca)) ||
+        (anyItem.ComponentesNoMes && anyItem.ComponentesNoMes.toLowerCase().includes(busca)) ||
+        (anyItem.Escolas && anyItem.Escolas.toLowerCase().includes(busca)) ||
+        (anyItem.EscolasAtendidas && anyItem.EscolasAtendidas.toLowerCase().includes(busca));
 
       const matchEscola =
         filtroEscola === 'TODAS' ||
@@ -745,12 +750,15 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
   // Filtragem do Relatório 3
   const dadosCargaDocenteFiltrados = useMemo(() => {
     return dadosCargaDocente.filter((item) => {
+      const anyItem = item as any;
       const busca = filtroTexto.toLowerCase();
       const matchBusca =
         !filtroTexto ||
         item.Professor.toLowerCase().includes(busca) ||
-        (item.TurmasVinculadas && item.TurmasVinculadas.toLowerCase().includes(busca)) ||
-        (item.EscolasAtuadas && item.EscolasAtuadas.toLowerCase().includes(busca));
+        (anyItem.TurmasVinculadas && anyItem.TurmasVinculadas.toLowerCase().includes(busca)) ||
+        (anyItem.TurmasAtendidas && anyItem.TurmasAtendidas.toLowerCase().includes(busca)) ||
+        (anyItem.EscolasAtuadas && anyItem.EscolasAtuadas.toLowerCase().includes(busca)) ||
+        (anyItem.EscolasHabituais && anyItem.EscolasHabituais.toLowerCase().includes(busca));
 
       const matchEscola =
         filtroEscola === 'TODAS' ||

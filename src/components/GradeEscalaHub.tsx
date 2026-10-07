@@ -13,7 +13,7 @@ interface GradeEscalaHubProps {
   onSelectProfessor: (profId: string) => void;
   onOpenSubstituicao: (turma: Turma, componente: ComponenteDaTurma) => void;
   onOpenEditarComponente?: (turma: Turma, componente: ComponenteDaTurma) => void;
-  onConcluirComponente: (turma: Turma, componente: ComponenteDaTurma) => void;
+  onConcluirComponente: (turmaId: string, compId: string) => void;
   onOpenCadastrarTurma?: () => void;
   onOpenEditarTurma?: (t: Turma) => void;
   subVisaoInicial?: 'grade-semanal' | 'por-docente' | 'por-data' | 'timeline';

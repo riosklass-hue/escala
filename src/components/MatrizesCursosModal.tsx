@@ -24,7 +24,14 @@ import {
   RotateCcw,
   Save,
   AlertTriangle,
+  Loader2,
+  Upload,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  Wand2,
 } from 'lucide-react';
+import { processarEmentaComIA } from '../services/aiEmentaParser';
 
 interface MatrizesCursosModalProps {
   isOpen: boolean;
@@ -74,6 +81,106 @@ export const MatrizesCursosModal: React.FC<MatrizesCursosModalProps> = ({
   const [novoUcNome, setNovoUcNome] = useState<string>('');
   const [novoUcCarga, setNovoUcCarga] = useState<number>(40);
   const [erroForm, setErroForm] = useState<string | null>(null);
+
+  // Estados da Importação Inteligente de Ementas com IA
+  const [isImportAIOpen, setIsImportAIOpen] = useState<boolean>(true);
+  const [textoEmentaIA, setTextoEmentaIA] = useState<string>('');
+  const [instrucoesIA, setInstrucoesIA] = useState<string>('');
+  const [processandoIA, setProcessandoIA] = useState<boolean>(false);
+  const [sucessoIAMsg, setSucessoIAMsg] = useState<string | null>(null);
+  const [erroIAMsg, setErroIAMsg] = useState<string | null>(null);
+
+  const EXEMPLO_ENFERMAGEM = `CURSO TÉCNICO EM ENFERMAGEM (ENF)
+Modalidade: Concomitante e Subsequente - Carga Horária: 800 horas
+
+Módulo I - Fundamentos do Cuidado:
+- Anatomia e Fisiologia Humana (80h)
+- Microbiologia, Parasitologia e Imunologia (40h)
+- Fundamentos e Procedimentos de Enfermagem (100h)
+- Ética, Bioética e Legislação Profissional (40h)
+- Saúde Coletiva e Políticas Públicas do SUS (60h)
+
+Módulo II - Assistência Clínica e Cirúrgica:
+- Enfermagem em Clínica Médica (80h)
+- Enfermagem em Clínica Cirúrgica e Centro Cirúrgico (80h)
+- Farmacologia Aplicada à Enfermagem (60h)
+- Urgência, Emergência e Atendimento Pré-Hospitalar (60h)
+- Enfermagem em Saúde Mental e Psiquiatria (40h)
+
+Módulo III - Saúde Especializada e Estágio:
+- Assistência à Saúde da Mulher, Materno e Obstetrícia (60h)
+- Assistência à Saúde da Criança e do Adolescente (60h)
+- Enfermagem em Saúde do Idoso (40h)
+- Prática Profissional e Estágio Curricular Supervisionado (200h)`;
+
+  const EXEMPLO_LOGISTICA = `CURSO TÉCNICO EM LOGÍSTICA (LOG)
+Carga Horária Total: 800h - Nível Médio Técnico
+
+Grade Curricular:
+1. Fundamentos da Cadeia de Suprimentos e Logística Integrada - 80 horas
+2. Gestão de Compras e Negociação com Fornecedores - 60 horas
+3. Armazenagem, Embalagem e Movimentação de Materiais - 80 horas
+4. Gestão e Controle de Estoques - 80 horas
+5. Modais de Transporte e Roteirização de Entregas - 80 horas
+6. Custos Logísticos e Formação de Preços - 60 horas
+7. Logística Internacional e Comércio Exterior - 60 horas
+8. Logística Reversa e Sustentabilidade Empresarial - 40 horas
+9. Sistemas de Informação Logística (ERP, WMS e TMS) - 60 horas
+10. Legislação Tributária e Fiscal Aplicada aos Transportes - 40 horas
+11. Gestão da Qualidade e Indicadores de Desempenho (KPIs) - 60 horas
+12. Projeto Integrador em Operações Logísticas - 100 horas`;
+
+  const handleProcessarEmentaIA = async () => {
+    if (!textoEmentaIA.trim()) {
+      setErroIAMsg('Por favor, cole ou digite o texto da ementa do curso para que a IA possa analisar.');
+      return;
+    }
+    setErroIAMsg(null);
+    setSucessoIAMsg(null);
+    setProcessandoIA(true);
+
+    try {
+      const resultado = await processarEmentaComIA(textoEmentaIA, instrucoesIA);
+      if (resultado.nome) setEditNome(resultado.nome);
+      if (resultado.sigla) setEditSigla(resultado.sigla);
+      if (resultado.modalidade) setEditModalidade(resultado.modalidade);
+      if (resultado.descricao) setEditDescricao(resultado.descricao);
+      if (Array.isArray(resultado.unidades) && resultado.unidades.length > 0) {
+        setEditUnidades(
+          resultado.unidades.map((u, i) => ({
+            id: u.id || `uc-ai-${Date.now()}-${i}`,
+            nome: u.nome,
+            cargaHoraria: Number(u.cargaHoraria) || 40,
+          }))
+        );
+      }
+      setSucessoIAMsg(
+        `✨ A Inteligência Artificial organizou a grade com sucesso! Curso "${resultado.nome}" (${resultado.sigla}) com ${resultado.unidades.length} disciplinas identificadas e ${resultado.cargaHorariaTotal}h totais calculadas.`
+      );
+    } catch (err: any) {
+      console.error('[IA Ementa]', err);
+      setErroIAMsg(err?.message || 'Erro ao processar ementa com Inteligência Artificial.');
+    } finally {
+      setProcessandoIA(false);
+    }
+  };
+
+  const handleCarregarArquivoTexto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const conteudo = (event.target?.result as string) || '';
+      setTextoEmentaIA(conteudo);
+      setErroIAMsg(null);
+      setSucessoIAMsg(`Arquivo "${file.name}" carregado. Clique em "Processar & Organizar com IA" para estruturar a grade.`);
+    };
+    reader.onerror = () => {
+      setErroIAMsg('Não foi possível ler o arquivo selecionado.');
+    };
+    reader.readAsText(file);
+  };
 
   // Atualiza seleção ou modo caso mude externamente
   useEffect(() => {
@@ -345,15 +452,30 @@ export const MatrizesCursosModal: React.FC<MatrizesCursosModalProps> = ({
 
           <div className="flex items-center gap-2">
             {!modoEdicao && (
-              <button
-                type="button"
-                id="btn-cadastrar-nova-ementa-topo"
-                onClick={handleIniciarCriacaoNova}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ Nova Ementa</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  id="btn-importar-com-ia-topo"
+                  onClick={() => {
+                    handleIniciarCriacaoNova();
+                    setIsImportAIOpen(true);
+                  }}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                  title="Importar ementa completa usando Inteligência Artificial"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>Importar Ementa com IA</span>
+                </button>
+                <button
+                  type="button"
+                  id="btn-cadastrar-nova-ementa-topo"
+                  onClick={handleIniciarCriacaoNova}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Nova Ementa</span>
+                </button>
+              </>
             )}
 
             <button
@@ -428,6 +550,153 @@ export const MatrizesCursosModal: React.FC<MatrizesCursosModalProps> = ({
 
             {/* Corpo do Formulário */}
             <div className="p-5 space-y-6 flex-1">
+
+              {/* CARD DESTACADO: IMPORTADOR DE EMENTA COM INTELIGÊNCIA ARTIFICIAL */}
+              <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-indigo-900 text-white rounded-2xl p-4 sm:p-5 shadow-lg border border-indigo-500/40 relative overflow-hidden">
+                {/* Glow decorativo de fundo */}
+                <div className="absolute -top-12 -right-12 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+                  <div className="flex items-start sm:items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-white shadow-md shrink-0">
+                      <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold flex items-center gap-2 text-white">
+                        <span>Importar Ementa com Inteligência Artificial</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black tracking-wider bg-purple-500/30 text-purple-200 border border-purple-400/40 uppercase">
+                          Gemini AI
+                        </span>
+                      </h4>
+                      <p className="text-xs text-indigo-200/90 mt-0.5">
+                        Cole o documento, PPC ou plano de curso. A IA identifica o nome, sigla, disciplinas, calcula as cargas horárias e preenche toda a grade.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    id="btn-toggle-importador-ia"
+                    onClick={() => setIsImportAIOpen(!isImportAIOpen)}
+                    className="self-start sm:self-auto px-3 py-1.5 rounded-lg bg-indigo-800/80 hover:bg-indigo-700 text-xs font-bold text-indigo-100 border border-indigo-600/60 flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                  >
+                    <span>{isImportAIOpen ? 'Recolher Painel' : 'Abrir Importador IA'}</span>
+                    {isImportAIOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+
+                {isImportAIOpen && (
+                  <div className="space-y-4 pt-4 border-t border-indigo-800/80 mt-4 relative z-10 animate-in fade-in duration-150">
+                    <div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                        <label className="text-xs font-bold text-indigo-200 flex items-center gap-1.5">
+                          <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>Cole o texto da ementa, matriz curricular ou documento do curso:</span>
+                        </label>
+
+                        {/* Botão de Carregar Arquivo */}
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-800/90 hover:bg-indigo-700 text-xs font-semibold text-indigo-100 border border-indigo-600/70 cursor-pointer transition-colors shadow-2xs self-start sm:self-auto">
+                          <Upload className="w-3.5 h-3.5 text-indigo-300" />
+                          <span>Carregar Arquivo (.txt, .pdf, .csv, .doc)</span>
+                          <input
+                            type="file"
+                            accept=".txt,.pdf,.csv,.doc,.docx"
+                            onChange={handleCarregarArquivoTexto}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+
+                      <textarea
+                        rows={6}
+                        placeholder={`Exemplo de ementa que você pode colar aqui:\n\nCURSO TÉCNICO EM ENFERMAGEM (ENF) - 800h\n1. Anatomia e Fisiologia Humana (80h)\n2. Microbiologia e Parasitologia (40h)\n3. Fundamentos de Enfermagem (100h)\n4. Farmacologia Aplicada à Enfermagem (60h)\n5. Saúde Coletiva e SUS (60h)\n6. Urgência e Emergência (60h)...`}
+                        value={textoEmentaIA}
+                        onChange={(e) => setTextoEmentaIA(e.target.value)}
+                        className="w-full px-3.5 py-2.5 text-xs bg-slate-950/90 border border-indigo-700/70 rounded-xl text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-purple-400 focus:outline-hidden font-mono leading-relaxed"
+                      />
+                    </div>
+
+                    {/* Modelos de Exemplo e Ações de Limpeza */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-indigo-300 font-semibold text-xs flex items-center gap-1">
+                        <Wand2 className="w-3 h-3 text-amber-300" />
+                        Modelos de teste rápido:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTextoEmentaIA(EXEMPLO_ENFERMAGEM);
+                          setErroIAMsg(null);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-indigo-900/80 hover:bg-indigo-800 text-xs font-medium text-indigo-200 border border-indigo-700/60 transition-colors cursor-pointer"
+                      >
+                        Técnico em Enfermagem (800h)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTextoEmentaIA(EXEMPLO_LOGISTICA);
+                          setErroIAMsg(null);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-indigo-900/80 hover:bg-indigo-800 text-xs font-medium text-indigo-200 border border-indigo-700/60 transition-colors cursor-pointer"
+                      >
+                        Técnico em Logística (800h)
+                      </button>
+                      {textoEmentaIA && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTextoEmentaIA('');
+                            setErroIAMsg(null);
+                            setSucessoIAMsg(null);
+                          }}
+                          className="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white transition-colors cursor-pointer ml-auto"
+                        >
+                          Limpar Texto
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Alertas de Sucesso ou Erro da IA */}
+                    {sucessoIAMsg && (
+                      <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-500/50 text-xs text-emerald-200 flex items-start gap-2.5 animate-in fade-in duration-200">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <span className="font-medium leading-relaxed">{sucessoIAMsg}</span>
+                      </div>
+                    )}
+                    {erroIAMsg && (
+                      <div className="p-3 rounded-xl bg-rose-950/80 border border-rose-500/50 text-xs text-rose-200 flex items-start gap-2.5 animate-in fade-in duration-200">
+                        <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                        <span className="font-medium leading-relaxed">{erroIAMsg}</span>
+                      </div>
+                    )}
+
+                    {/* Botão de Ação Principal com IA */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-1">
+                      <button
+                        type="button"
+                        id="btn-processar-ementa-ia"
+                        onClick={handleProcessarEmentaIA}
+                        disabled={processandoIA}
+                        className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 via-indigo-600 to-blue-600 hover:from-purple-600 hover:to-blue-700 text-white font-extrabold text-xs shadow-xl hover:shadow-indigo-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {processandoIA ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin text-white" />
+                            <span>Inteligência Artificial Analisando e Organizando Grade...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4 text-amber-300" />
+                            <span>Processar & Organizar Ementa com Inteligência Artificial</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Informações Gerais do Curso */}
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <h5 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
@@ -738,13 +1007,27 @@ export const MatrizesCursosModal: React.FC<MatrizesCursosModalProps> = ({
                 );
               })}
 
-              {/* Botão para Cadastrar Nova Ementa */}
+              {/* Botões para Cadastrar Nova Ementa ou Importar com IA */}
+              <button
+                type="button"
+                id="btn-importar-ementa-ia-tab"
+                onClick={() => {
+                  handleIniciarCriacaoNova();
+                  setIsImportAIOpen(true);
+                }}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                title="Importar ementa colando texto ou enviando arquivo com Inteligência Artificial"
+              >
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <span>Importar com IA</span>
+              </button>
+
               <button
                 type="button"
                 id="btn-cadastrar-nova-ementa-tab"
                 onClick={handleIniciarCriacaoNova}
                 className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                title="Cadastrar uma nova ementa curricular de curso técnico"
+                title="Cadastrar uma nova ementa curricular de curso técnico manualmente"
               >
                 <Plus className="w-4 h-4" />
                 <span>+ Nova Ementa</span>

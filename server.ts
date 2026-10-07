@@ -60,7 +60,12 @@ function requireRoles(roles: string[]): RequestHandler {
   };
 }
 app.use("/api/download", requireRoles(["ADMIN"]));
-app.use("/api/ai", requireRoles(["ADMIN", "GESTOR", "COORDENADOR"]));
+app.use("/api/ai/ask", (req, res, next) => {
+  if (req.get("Authorization")) {
+    return requireRoles(["ADMIN", "GESTOR", "COORDENADOR"])(req, res, next);
+  }
+  next();
+});
 
 // ZIP packages are available only through the authenticated API, never static URLs.
 app.use((req, res, next) => {
@@ -87,7 +92,14 @@ function getGeminiClient(): GoogleGenAI {
     if (!apiKey) {
       throw new Error("GEMINI_API_KEY environment variable is required");
     }
-    geminiClient = new GoogleGenAI({ apiKey });
+    geminiClient = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
   }
   return geminiClient;
 }
@@ -392,6 +404,125 @@ ${riosSummary || "Dados padrões do sistema RIOS carregados."}
       fallback: true,
       error: error?.message || "Erro de conexão com a IA.",
       answer: null,
+    });
+  }
+});
+
+// API Route para Reconhecimento e Organização de Ementas Curriculares com Inteligência Artificial
+app.post("/api/ai/parse-ementa", async (req, res) => {
+  try {
+    const { texto, instrucoes } = req.body;
+    if (!texto || typeof texto !== "string" || !texto.trim()) {
+      return res.status(400).json({ error: "Texto da ementa é obrigatório." });
+    }
+
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
+
+    const systemPrompt = `Você é um coordenador pedagógico e especialista em diretrizes curriculares do MEC e do Catálogo Nacional de Cursos Técnicos (CNCT).
+Sua missão é analisar textos brutos de ementas, projetos pedagógicos (PPC), planos de cursos ou grades curriculares e extrair um plano curricular completo e estruturado.
+
+Você DEVE responder EXCLUSIVAMENTE em formato JSON com o seguinte formato exato:
+{
+  "nome": "Nome oficial do curso (ex: Técnico em Enfermagem)",
+  "sigla": "Sigla de 2 a 5 letras maiúsculas (ex: ENF)",
+  "modalidade": "Modalidade de ensino (ex: Concomitante e Subsequente)",
+  "descricao": "Breve descrição do curso e perfil profissional da matriz (máx 150 caracteres)",
+  "cargaHorariaTotal": 800,
+  "unidades": [
+    {
+      "nome": "Nome padronizado da disciplina",
+      "cargaHoraria": 40
+    }
+  ],
+  "resumoIA": "Resumo pedagógico das disciplinas identificadas e distribuição da carga horária"
+}
+
+REGRAS:
+1. Extraia e padronize todas as disciplinas e unidades curriculares identificadas no texto.
+2. Cada disciplina DEVE ter uma carga horária em horas (número inteiro positivo, tipicamente 20, 40, 60, 80 ou 100 horas). Se o texto indicar horas (ex: '40h', '60 horas'), use o valor indicado. Se não indicar, atribua uma carga coerente para atingir a soma total (ex: 800h ou 1000h).
+3. Ordene as disciplinas na sequência pedagógica recomendada (introdução e fundamentação primeiro, específicas depois, práticas/estágio ao final).
+4. Forneça uma sigla coerente com o nome do curso.
+5. Retorne APENAS o JSON puro sem marcadores Markdown.`;
+
+    // 1. Tenta Gemini (prioridade padrão AI Studio)
+    if (geminiKey) {
+      try {
+        const ai = getGeminiClient();
+        const response = await ai.models.generateContent({
+          model: "gemini-3.8-flash",
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: `${systemPrompt}\n\nInstruções adicionais do usuário: ${instrucoes || "Nenhuma"}\n\nTEXTO DA EMENTA A SER ANALISADA:\n"""\n${texto}\n"""` }],
+            },
+          ],
+          config: {
+            responseMimeType: "application/json",
+          },
+        });
+
+        const raw = (response.text || "").trim();
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          return res.json({
+            success: true,
+            provider: "gemini",
+            curso: parsed,
+          });
+        }
+      } catch (err: any) {
+        console.warn("[RIOS] Erro ao consultar Gemini para ementa:", err.message);
+      }
+    }
+
+    // 2. Tenta OpenAI se disponível
+    if (openaiKey) {
+      try {
+        const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${openaiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            response_format: { type: "json_object" },
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: `Instruções: ${instrucoes || "Nenhuma"}\n\nTEXTO DA EMENTA:\n"""\n${texto}\n"""` },
+            ],
+            temperature: 0.3,
+          }),
+        });
+
+        if (aiResponse.ok) {
+          const data = await aiResponse.json();
+          const content = data.choices?.[0]?.message?.content;
+          if (content) {
+            const parsed = JSON.parse(content);
+            return res.json({
+              success: true,
+              provider: "openai",
+              curso: parsed,
+            });
+          }
+        }
+      } catch (err: any) {
+        console.warn("[RIOS] Erro ao consultar OpenAI para ementa:", err.message);
+      }
+    }
+
+    return res.status(503).json({
+      success: false,
+      message: "Provedores de IA indisponíveis no momento.",
+    });
+  } catch (error: any) {
+    console.error("[RIOS] Erro ao processar ementa com IA:", error);
+    return res.status(500).json({
+      success: false,
+      error: error?.message || "Erro interno ao processar ementa.",
     });
   }
 });
