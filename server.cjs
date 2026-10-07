@@ -415,10 +415,10 @@ REGRAS:
 3. Ordene as disciplinas na sequ\xEAncia pedag\xF3gica recomendada (introdu\xE7\xE3o e fundamenta\xE7\xE3o primeiro, espec\xEDficas depois, pr\xE1ticas/est\xE1gio ao final).
 4. Forne\xE7a uma sigla coerente com o nome do curso.
 5. Retorne APENAS o JSON puro sem marcadores Markdown.`;
-    if (geminiKey) {
+    if (geminiKey && geminiKey !== "MY_GEMINI_API_KEY") {
       try {
         const ai = getGeminiClient();
-        const response = await ai.models.generateContent({
+        const callPromise = ai.models.generateContent({
           model: "gemini-3.8-flash",
           contents: [
             {
@@ -437,6 +437,10 @@ ${texto}
             responseMimeType: "application/json"
           }
         });
+        const timeoutPromise = new Promise(
+          (_, reject) => setTimeout(() => reject(new Error("Timeout Gemini")), 7e3)
+        );
+        const response = await Promise.race([callPromise, timeoutPromise]);
         const raw = (response.text || "").trim();
         const jsonMatch = raw.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -451,10 +455,13 @@ ${texto}
         console.warn("[RIOS] Erro ao consultar Gemini para ementa:", err.message);
       }
     }
-    if (openaiKey) {
+    if (openaiKey && !openaiKey.includes("your-openai-key")) {
       try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 7e3);
         const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
+          signal: controller.signal,
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${openaiKey}`
@@ -474,6 +481,7 @@ ${texto}
             temperature: 0.3
           })
         });
+        clearTimeout(timer);
         if (aiResponse.ok) {
           const data = await aiResponse.json();
           const content = data.choices?.[0]?.message?.content;
