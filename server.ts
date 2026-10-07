@@ -17,7 +17,12 @@ const firebaseConfig = fs.existsSync(firebaseConfigFile)
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+// AI Studio dev environment runs Nginx on 8080 and proxies to port 3000.
+// In dev mode or when --port is provided, dev server MUST run on port 3000.
+const portArgIndex = process.argv.indexOf("--port");
+const argPort = portArgIndex !== -1 && process.argv[portArgIndex + 1] ? parseInt(process.argv[portArgIndex + 1], 10) : null;
+const isDev = process.env.NODE_ENV !== "production";
+const PORT = argPort || (isDev ? 3000 : (process.env.PORT ? parseInt(process.env.PORT, 10) : 3000));
 
 app.use(express.json({ limit: "5mb" }));
 
